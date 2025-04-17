@@ -26,80 +26,21 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       padding: 16px;
     }
-    h1 {
-      font-size: 20px;
-      margin-bottom: 12px;
-      color: #333;
+    h1 { font-size: 20px; margin-bottom: 12px; color: #333; }
+    .setup, .controls { margin-bottom: 16px; }
+    .setup label { font-size: 14px; color: #555; }
+    .setup select, .setup input[type=number] {
+      width: 48%; font-size: 16px; padding: 8px; margin: 4px 1%; border: 1px solid #ccc; border-radius: 8px;
     }
-    .setup, .controls {
-      margin-bottom: 16px;
-    }
-    .setup label {
-      font-size: 14px;
-      color: #555;
-    }
-    .setup select,
-    .setup input[type=number] {
-      width: 48%;
-      font-size: 16px;
-      padding: 8px;
-      margin: 4px 1%;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: space-between;
-    }
-    .controls button {
-      flex: 1 1 calc(33% - 8px);
-      font-size: 16px;
-      padding: 10px 0;
-      border: none;
-      border-radius: 8px;
-      background: #0077cc;
-      color: #fff;
-      transition: background 0.2s;
-    }
-    .controls button:disabled {
-      background: #aaa;
-    }
-    .quickfire-timers {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .player {
-      background: #fafafa;
-      border-radius: 8px;
-      padding: 12px;
-      text-align: center;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-      transition: background 0.3s, border 0.3s;
-    }
-    .player.active {
-      background: #d0f8ff;
-      border: 2px solid #0077cc;
-    }
-    .player h2 {
-      margin: 0;
-      font-size: 18px;
-      color: #333;
-    }
-    .time {
-      font-size: 36px;
-      margin: 8px 0;
-      color: #222;
-      font-weight: bold;
-    }
-    #roundInfo {
-      font-size: 14px;
-      color: #555;
-      text-align: center;
-      margin-top: 8px;
-    }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+    .controls button { flex: 1 1 calc(33% - 8px); font-size: 16px; padding: 10px 0; border: none; border-radius: 8px; background: #0077cc; color: #fff; transition: background 0.2s; }
+    .controls button:disabled { background: #aaa; }
+    .quickfire-timers { display: flex; flex-direction: column; gap: 12px; }
+    .player { background: #fafafa; border-radius: 8px; padding: 12px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: background 0.3s, border 0.3s; }
+    .player.active { background: #d0f8ff; border: 2px solid #0077cc; }
+    .player h2 { margin: 0; font-size: 18px; color: #333; }
+    .time { font-size: 36px; margin: 8px 0; color: #222; font-weight: bold; }
+    #roundInfo { font-size: 14px; color: #555; text-align: center; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -108,8 +49,7 @@
     <div class="setup">
       <label>每回合時間：</label><br>
       <select id="minutes"></select>
-      <select id="seconds"></select> 秒
-      <br>
+      <select id="seconds"></select> 秒<br>
       <label>回合數（0=無限）：</label><br>
       <input type="number" id="rounds" value="0" min="0" />
     </div>
@@ -131,140 +71,83 @@
     <div id="roundInfo"></div>
   </div>
   <script>
-    // 初始化下拉選單
-    window.addEventListener('DOMContentLoaded', () => {
-      const minSel = document.getElementById('minutes');
-      const secSel = document.getElementById('seconds');
-      for (let i = 0; i <= 60; i++) {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = i;
-        if (i === 0) opt.selected = true;
-        minSel.appendChild(opt);
-      }
-      for (let i = 0; i < 60; i++) {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = i;
-        if (i === 10) opt.selected = true;
-        secSel.appendChild(opt);
-      }
-      updateDisplay();
-    });
-
+    let isRunning = false;
+    let isPaused = false;
     let initSec = 0, qTimeA = 0, qTimeB = 0;
     let maxRounds = 0, currentRound = 0;
     let currentPlayer = 1;
-    let timerInterval = null, isPaused = false;
-
+    let timerInterval = null;
     const startBtn = document.getElementById('startBtn');
     const pauseBtn = document.getElementById('pauseBtn');
     const stopBtn = document.getElementById('stopBtn');
+    const p1 = document.getElementById('qplayer1');
+    const p2 = document.getElementById('qplayer2');
 
     function formatTime(sec) {
-      const m = Math.floor(sec / 60);
-      const s = sec % 60;
-      return `${m}:${s < 10 ? '0' + s : s}`;
+      const m = Math.floor(sec/60), s = sec%60;
+      return `${m}:${s<10?'0'+s:s}`;
     }
-
     function updateDisplay() {
       document.getElementById('qtime1').textContent = formatTime(qTimeA);
       document.getElementById('qtime2').textContent = formatTime(qTimeB);
-      document.getElementById('qplayer1').classList.toggle('active', currentPlayer === 1);
-      document.getElementById('qplayer2').classList.toggle('active', currentPlayer === 2);
-      const info = maxRounds > 0
-        ? `第 ${currentRound} 回合 / 共 ${maxRounds} 回合`
-        : `第 ${currentRound} 回合 / 無限回合`;
+      p1.classList.toggle('active', currentPlayer===1);
+      p2.classList.toggle('active', currentPlayer===2);
+      const info = maxRounds>0?`第 ${currentRound} 回合 / 共 ${maxRounds} 回合`:`第 ${currentRound} 回合 / 無限回合`;
       document.getElementById('roundInfo').textContent = info;
     }
-
+    function runInterval() {
+      timerInterval = setInterval(()=>{
+        if(isPaused) return;
+        if(currentPlayer===1) qTimeA--; else qTimeB--;
+        if((currentPlayer===1&&qTimeA<=0)||(currentPlayer===2&&qTimeB<=0)) {
+          switchPlayer(); return;
+        }
+        updateDisplay();
+      },1000);
+    }
+    function startTimer() {
+      if(currentPlayer===1) qTimeA=initSec; else qTimeB=initSec;
+      updateDisplay();
+      runInterval();
+    }
     function switchPlayer() {
       clearInterval(timerInterval);
-      currentPlayer = currentPlayer === 1 ? 2 : 1;
+      currentPlayer = currentPlayer===1?2:1;
       currentRound++;
-      updateDisplay();
-      if (maxRounds > 0 && currentRound > maxRounds) {
-        startBtn.disabled = false;
-        pauseBtn.disabled = true;
-        stopBtn.disabled = true;
-        return;
+      if(maxRounds>0 && currentRound>maxRounds) {
+        isRunning=false; startBtn.disabled=false; pauseBtn.disabled=true; stopBtn.disabled=true; return;
       }
       startTimer();
     }
-
     function handlePlayerClick(player) {
-      if (player !== currentPlayer) {
+      if(!isRunning) return;
+      if(player!==currentPlayer) {
         clearInterval(timerInterval);
-        currentPlayer = player;
-        currentRound++;
-        if (player === 1) qTimeA = initSec;
-        else qTimeB = initSec;
-        updateDisplay();
-        startTimer();
+        currentPlayer=player; currentRound++;
+        if(player===1) qTimeA=initSec; else qTimeB=initSec;
+        updateDisplay(); runInterval();
       }
     }
-
-    document.getElementById('qplayer1').addEventListener('click', () => handlePlayerClick(1));
-    document.getElementById('qplayer2').addEventListener('click', () => handlePlayerClick(2));
-
-    function startTimer() {
-      if (currentPlayer === 1) qTimeA = initSec;
-      else qTimeB = initSec;
-      updateDisplay();
-      timerInterval = setInterval(() => {
-        if (!isPaused) {
-          if (currentPlayer === 1) {
-            qTimeA--;
-            if (qTimeA <= 0) switchPlayer();
-          } else {
-            qTimeB--;
-            if (qTimeB <= 0) switchPlayer();
-          }
-          updateDisplay();
-        }
-      }, 1000);
-    }
-
-    startBtn.addEventListener('click', () => {
-      const mins = parseInt(document.getElementById('minutes').value, 10);
-      const secs = parseInt(document.getElementById('seconds').value, 10);
-      initSec = mins * 60 + secs;
-      maxRounds = parseInt(document.getElementById('rounds').value, 10);
-      currentRound = 1;
-      currentPlayer = 1;
-      qTimeA = qTimeB = initSec;
-      isPaused = false;
-      startBtn.disabled = true;
-      pauseBtn.disabled = false;
-      stopBtn.disabled = false;
-      pauseBtn.textContent = '暫停';
-      updateDisplay();
-      startTimer();
+    p1.addEventListener('click',()=>handlePlayerClick(1));
+    p2.addEventListener('click',()=>handlePlayerClick(2));
+    window.addEventListener('DOMContentLoaded',()=>{
+      const minSel = document.getElementById('minutes'), secSel=document.getElementById('seconds');
+      for(let i=0;i<=60;i++){const opt=document.createElement('option');opt.value=i;opt.textContent=i;if(i===0)opt.selected=true;minSel.appendChild(opt);}      for(let i=0;i<60;i++){const opt=document.createElement('option');opt.value=i;opt.textContent=i;if(i===10)opt.selected=true;secSel.appendChild(opt);}      updateDisplay();
     });
-
-    pauseBtn.addEventListener('click', () => {
-      if (!isPaused) {
-        clearInterval(timerInterval);
-        isPaused = true;
-        pauseBtn.textContent = '繼續';
-      } else {
-        isPaused = false;
-        pauseBtn.textContent = '暫停';
-        startTimer();
-      }
+    startBtn.addEventListener('click',()=>{
+      const mins=parseInt(document.getElementById('minutes').value,10);
+      const secs=parseInt(document.getElementById('seconds').value,10);
+      initSec=mins*60+secs;maxRounds=parseInt(document.getElementById('rounds').value,10);
+      currentRound=1; currentPlayer=1; qTimeA=qTimeB=initSec; isPaused=false; isRunning=true;
+      startBtn.disabled=true; pauseBtn.disabled=false; stopBtn.disabled=false; pauseBtn.textContent='暫停'; updateDisplay(); startTimer();
     });
-
-    stopBtn.addEventListener('click', () => {
-      clearInterval(timerInterval);
-      startBtn.disabled = false;
-      pauseBtn.disabled = true;
-      stopBtn.disabled = true;
-      isPaused = false;
-      pauseBtn.textContent = '暫停';
-      currentRound = 0;
-      currentPlayer = 1;
-      qTimeA = qTimeB = 0;
-      updateDisplay();
+    pauseBtn.addEventListener('click',()=>{
+      if(!isPaused){clearInterval(timerInterval);isPaused=true;pauseBtn.textContent='繼續';}else{isPaused=false;pauseBtn.textContent='暫停';runInterval();}
+    });
+    stopBtn.addEventListener('click',()=>{
+      clearInterval(timerInterval);isPaused=false;isRunning=false;
+      startBtn.disabled=false; pauseBtn.disabled=true; stopBtn.disabled=true; pauseBtn.textContent='暫停';
+      currentRound=0; currentPlayer=1; qTimeA=qTimeB=0; updateDisplay();
     });
   </script>
 </body>
