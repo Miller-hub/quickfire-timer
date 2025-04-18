@@ -40,7 +40,6 @@
       <button id="startBtn">開始</button>
       <button id="pauseBtn" disabled>暫停</button>
       <button id="stopBtn" disabled>停止</button>
-      <button id="muteBtn">🔊</button>
     </div>
     <div class="quickfire-timers">
       <div class="player" id="p1">
@@ -55,27 +54,9 @@
     <div id="roundInfo"></div>
   </div>
   <script>
-    // Audio setup
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    const audioCtx = new AudioCtx();
-    let muted = false;
-    function playBeep(duration=100, frequency=440) {
-      if (muted) return;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.frequency.value = frequency;
-      gain.gain.value = 1;
-      osc.start();
-      setTimeout(() => osc.stop(), duration);
-    }
-
-    // Elements
     const startBtn = document.getElementById('startBtn');
     const pauseBtn = document.getElementById('pauseBtn');
     const stopBtn = document.getElementById('stopBtn');
-    const muteBtn = document.getElementById('muteBtn');
     const p1 = document.getElementById('p1');
     const p2 = document.getElementById('p2');
     const t1 = document.getElementById('t1');
@@ -86,25 +67,22 @@
     const roundsInput = document.getElementById('rounds');
     const autoSwitch = document.getElementById('autoSwitch');
 
-    // State
     let initSec = 0, timeA = 0, timeB = 0;
     let current = 1;
     let rounds = 0, roundCount = 0;
     let running = false, paused = false;
     let intervalId = null;
 
-    // Populate selects
     for(let i=0;i<=60;i++){ minSel.add(new Option(i,i)); if(i<60) secSel.add(new Option(i,i)); }
     minSel.value = 0; secSel.value = 10;
 
     function format(s){ const m=Math.floor(s/60), sec=s%60; return `${m}:${sec<10?'0'+sec:sec}`; }
-
     function update(){
       t1.textContent = format(timeA);
       t2.textContent = format(timeB);
       p1.classList.toggle('active', current===1);
       p2.classList.toggle('active', current===2);
-      [t1,t2].forEach((el,i)=>{ const v=i===0?timeA:timeB; el.classList.toggle('red', v<=3); });
+      [t1,t2].forEach((el,i)=>{ const v=i===0?timeA:timeB; el.classList.toggle('red', v<=0); });
       info.textContent = rounds>0
         ? `第 ${roundCount} 回合 / 共 ${rounds} 回合`
         : `第 ${roundCount} 回合 / 無限回合`;
@@ -112,11 +90,8 @@
 
     function tick(){
       if(paused||!running) return;
-      if(current===1) timeA--; else timeB--;
-      playBeep(100, 440);
-      const rem = current===1?timeA:timeB;
-      if(rem>0 && rem<=3) setTimeout(() => playBeep(100, 660), 500);
-      if(rem<=0){ clearInterval(intervalId); if(autoSwitch.checked) switchPlayer(); return; }
+      if(current===1){ timeA--; if(timeA<=0){ if(autoSwitch.checked) switchPlayer(); return; } }
+      else{ timeB--; if(timeB<=0){ if(autoSwitch.checked) switchPlayer(); return; } }
       update();
     }
 
@@ -131,11 +106,10 @@
       intervalId = setInterval(tick,1000);
     }
 
-    p1.onclick = ()=>{ if(running && !paused && current!==1){ switchPlayer(); }};
-    p2.onclick = ()=>{ if(running && !paused && current!==2){ switchPlayer(); }};
+    p1.onclick = ()=>{ if(running&&!paused&&current!==1){ switchPlayer(); } };
+    p2.onclick = ()=>{ if(running&&!paused&&current!==2){ switchPlayer(); } };
 
     startBtn.onclick = ()=>{
-      audioCtx.resume();
       initSec = parseInt(minSel.value)*60 + parseInt(secSel.value);
       timeA = timeB = initSec;
       rounds = parseInt(roundsInput.value)||0;
@@ -166,11 +140,6 @@
       pauseBtn.textContent='暫停';
       roundCount=0; current=1; timeA=timeB=0;
       update();
-    };
-
-    muteBtn.onclick = ()=>{
-      muted = !muted;
-      muteBtn.textContent = muted ? '🔇' : '🔊';
     };
 
     update();
