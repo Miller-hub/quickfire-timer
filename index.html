@@ -30,7 +30,7 @@
     <h1>快問快答計時器</h1>
     <div class="setup">
       <label>每回合時間：</label>
-      <select id="minutes"></select>
+      <select id="minutes"></select> 分
       <select id="seconds"></select> 秒  
       <label>回合數（0=無限）：</label>
       <input type="number" id="rounds" value="0" min="0" />
@@ -115,7 +115,7 @@
       if(current===1) timeA--; else timeB--;
       playBeep(100, 440);
       const rem = current===1?timeA:timeB;
-      if(rem>0 && rem<=3) setTimeout(() => playBeep(100, 660), 500);
+      if(rem>0 && rem<=3) setTimeout(() => playBeep(100, 660), 200);
       if(rem<=0){ clearInterval(intervalId); if(autoSwitch.checked) switchPlayer(); return; }
       update();
     }
