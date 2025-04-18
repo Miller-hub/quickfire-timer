@@ -6,32 +6,34 @@
   <title>快問快答計時器</title>
   <style>
     /* 手機優化樣式 */
-    * { box-sizing: border-box; }
-    body { font-family: sans-serif; background: #f0f0f0; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .container { width: 100%; max-width: 360px; margin: 16px; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 16px; }
-    h1 { font-size: 20px; margin-bottom: 12px; color: #333; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; }
+    .container { width: 100%; max-width: 360px; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 16px; }
+    h1 { text-align: center; font-size: 20px; color: #333; margin-bottom: 16px; }
     .setup, .controls { margin-bottom: 16px; }
-    .setup label { font-size: 14px; color: #555; }
-    .setup select, .setup input[type=number] { width: 48%; font-size: 16px; padding: 8px; margin: 4px 1%; border: 1px solid #ccc; border-radius: 8px; }
-    .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
-    .controls button { flex: 1 1 calc(33% - 8px); font-size: 16px; padding: 10px 0; border: none; border-radius: 8px; background: #0077cc; color: #fff; transition: background 0.2s; }
-    .controls button:disabled { background: #aaa; }
-    .quickfire-timers { display: flex; flex-direction: column; gap: 12px; }
-    .player { background: #fafafa; border-radius: 8px; padding: 12px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: background 0.3s, border 0.3s; }
+    .setup label { display: block; font-size: 14px; color: #555; margin-bottom: 8px; }
+    select, input[type="number"] { width: 48%; font-size: 16px; padding: 8px; margin: 4px 1%; border: 1px solid #ccc; border-radius: 8px; }
+    .controls { display: flex; gap: 8px; justify-content: space-between; }
+    .controls button { flex: 1; font-size: 16px; padding: 10px 0; border: none; border-radius: 8px; background: #0077cc; color: #fff; cursor: pointer; }
+    .controls button:disabled { background: #aaa; cursor: not-allowed; }
+    .quickfire-timers { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .player { background: #fafafa; border-radius: 8px; padding: 12px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: background 0.3s, border 0.3s; cursor: pointer; }
     .player.active { background: #d0f8ff; border: 2px solid #0077cc; }
-    .player h2 { margin: 0; font-size: 18px; color: #333; }
-    .time { font-size: 36px; margin: 8px 0; color: #222; font-weight: bold; }
-    #roundInfo { font-size: 14px; color: #555; text-align: center; margin-top: 8px; }
+    .player h2 { font-size: 18px; color: #333; margin-bottom: 8px; }
+    .time { font-size: 36px; color: #222; font-weight: bold; margin-bottom: 8px; }
+    .time.red { color: red; animation: flash 1s infinite; }
+    @keyframes flash { 0%{opacity:1;}50%{opacity:0.4;}100%{opacity:1;} }
+    #roundInfo { text-align: center; font-size: 14px; color: #555; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>快問快答計時器</h1>
     <div class="setup">
-      <label>每回合時間：</label><br>
+      <label>每回合時間：</label>
       <select id="minutes"></select>
-      <select id="seconds"></select> 秒<br>
-      <label>回合數（0=無限）：</label><br>
+      <select id="seconds"></select> 秒  
+      <label>回合數（0=無限）：</label>
       <input type="number" id="rounds" value="0" min="0" />
     </div>
     <div class="controls">
@@ -40,156 +42,114 @@
       <button id="stopBtn" disabled>停止</button>
     </div>
     <div class="quickfire-timers">
-      <div class="player" id="qplayer1">
+      <div class="player" id="p1">
         <h2>玩家 A</h2>
-        <div class="time" id="qtime1">00:00</div>
+        <div class="time" id="t1">00:00</div>
       </div>
-      <div class="player" id="qplayer2">
+      <div class="player" id="p2">
         <h2>玩家 B</h2>
-        <div class="time" id="qtime2">00:00</div>
+        <div class="time" id="t2">00:00</div>
       </div>
     </div>
     <div id="roundInfo"></div>
   </div>
   <script>
-    let isRunning = false;
-    let isPaused = false;
-    let initSec = 0, qTimeA = 0, qTimeB = 0;
-    let maxRounds = 0, currentRound = 0;
-    let currentPlayer = 1;
-    let timerInterval = null;
-
+    // 元素
     const startBtn = document.getElementById('startBtn');
     const pauseBtn = document.getElementById('pauseBtn');
     const stopBtn = document.getElementById('stopBtn');
-    const p1 = document.getElementById('qplayer1');
-    const p2 = document.getElementById('qplayer2');
+    const p1 = document.getElementById('p1');
+    const p2 = document.getElementById('p2');
+    const t1 = document.getElementById('t1');
+    const t2 = document.getElementById('t2');
+    const info = document.getElementById('roundInfo');
+    const minSel = document.getElementById('minutes');
+    const secSel = document.getElementById('seconds');
+    const roundsInput = document.getElementById('rounds');
 
-    function formatTime(sec) {
-      const m = Math.floor(sec / 60);
-      const s = sec % 60;
-      return `${m}:${s < 10 ? '0' + s : s}`;
+    // 狀態
+    let initSec = 0, timeA = 0, timeB = 0;
+    let current = 1;
+    let rounds = 0, roundCount = 0;
+    let running = false, paused = false;
+    let intervalId = null;
+
+    // 建立選單
+    for(let i=0;i<=60;i++){ minSel.add(new Option(i,i)); if(i<60) secSel.add(new Option(i,i)); }
+    minSel.value = 0; secSel.value = 10;
+
+    function format(s){ const m=Math.floor(s/60), sec=s%60; return `${m}:${sec<10?'0'+sec:sec}`; }
+
+    function update(){
+      t1.textContent = format(timeA);
+      t2.textContent = format(timeB);
+      p1.classList.toggle('active', current===1);
+      p2.classList.toggle('active', current===2);
+      [t1,t2].forEach((el,i)=>{ if((i===0?timeA:timeB)===0) el.classList.add('red'); else el.classList.remove('red'); });
+      info.textContent = rounds>0
+        ? `第 ${roundCount} 回合 / 共 ${rounds} 回合`
+        : `第 ${roundCount} 回合 / 無限回合`;
     }
 
-    function updateDisplay() {
-      document.getElementById('qtime1').textContent = formatTime(qTimeA);
-      document.getElementById('qtime2').textContent = formatTime(qTimeB);
-      p1.classList.toggle('active', currentPlayer === 1);
-      p2.classList.toggle('active', currentPlayer === 2);
-      const info = currentRound > 0
-        ? (maxRounds > 0
-            ? `第 ${currentRound} 回合 / 共 ${maxRounds} 回合`
-            : `第 ${currentRound} 回合 / 無限回合`)
-        : '';
-      document.getElementById('roundInfo').textContent = info;
+    function tick(){
+      if(paused) return;
+      if(current===1){ timeA--; if(timeA<0) return switchPlayer(); }
+      else { timeB--; if(timeB<0) return switchPlayer(); }
+      update();
     }
 
-    function tick() {
-      if (isPaused) return;
-      if (currentPlayer === 1) {
-        qTimeA--;
-        if (qTimeA <= 0) return switchPlayer();
-      } else {
-        qTimeB--;
-        if (qTimeB <= 0) return switchPlayer();
-      }
-      updateDisplay();
+    function switchPlayer(){
+      clearInterval(intervalId);
+      current = current===1?2:1;
+      roundCount++;
+      if(rounds>0 && roundCount>rounds){ running=false; startBtn.disabled=false; pauseBtn.disabled=true; stopBtn.disabled=true; return; }
+      // 重置新玩家時間
+      if(current===1) timeA = initSec; else timeB = initSec;
+      paused = false;
+      update();
+      intervalId = setInterval(tick,1000);
     }
 
-    function startTick() {
-      clearInterval(timerInterval);
-      updateDisplay();
-      timerInterval = setInterval(tick, 1000);
-    }
+    p1.onclick = ()=>{ if(running&&!paused&&current!==1) switchPlayer(); };
+    p2.onclick = ()=>{ if(running&&!paused&&current!==2) switchPlayer(); };
 
-    function switchPlayer() {
-      clearInterval(timerInterval);
-      currentPlayer = currentPlayer === 1 ? 2 : 1;
-      currentRound++;
-      if (maxRounds > 0 && currentRound > maxRounds) {
-        isRunning = false;
-        startBtn.disabled = false;
-        pauseBtn.disabled = true;
-        stopBtn.disabled = true;
-        return;
-      }
-      isPaused = false;
-      startTick();
-    }
-
-    function handlePlayerClick(player) {
-      if (!isRunning || isPaused || player === currentPlayer) return;
-      clearInterval(timerInterval);
-      currentPlayer = player;
-      currentRound++;
-      if (player === 1) qTimeA = initSec;
-      else qTimeB = initSec;
-      isPaused = false;
-      startTick();
-    }
-
-    p1.addEventListener('click', () => handlePlayerClick(1));
-    p2.addEventListener('click', () => handlePlayerClick(2));
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const minSel = document.getElementById('minutes');
-      const secSel = document.getElementById('seconds');
-      for (let i = 0; i <= 60; i++) {
-        const opt = document.createElement('option'); opt.value = i; opt.textContent = i;
-        if (i === 0) opt.selected = true;
-        minSel.appendChild(opt);
-      }
-      for (let i = 0; i < 60; i++) {
-        const opt = document.createElement('option'); opt.value = i; opt.textContent = i;
-        if (i === 10) opt.selected = true;
-        secSel.appendChild(opt);
-      }
-      updateDisplay();
-    });
-
-    startBtn.addEventListener('click', () => {
-      const mins = parseInt(document.getElementById('minutes').value, 10);
-      const secs = parseInt(document.getElementById('seconds').value, 10);
-      initSec = mins * 60 + secs;
-      maxRounds = parseInt(document.getElementById('rounds').value, 10);
-      currentRound = 1;
-      currentPlayer = 1;
-      qTimeA = qTimeB = initSec;
-      isPaused = false;
-      isRunning = true;
+    startBtn.onclick = ()=>{
+      initSec = parseInt(minSel.value)*60 + parseInt(secSel.value);
+      timeA = timeB = initSec;
+      rounds = parseInt(roundsInput.value) || 0;
+      roundCount = 1;
+      current = 1;
+      running = true;
+      paused = false;
       startBtn.disabled = true;
       pauseBtn.disabled = false;
       stopBtn.disabled = false;
       pauseBtn.textContent = '暫停';
-      startTick();
-    });
+      update();
+      intervalId = setInterval(tick,1000);
+    };
 
-    pauseBtn.addEventListener('click', () => {
-      if (!isPaused) {
-        clearInterval(timerInterval);
-        isPaused = true;
-        pauseBtn.textContent = '繼續';
-      } else {
-        isPaused = false;
-        pauseBtn.textContent = '暫停';
-        updateDisplay();
-        startTick();
-      }
-    });
+    pauseBtn.onclick = ()=>{
+      if(!running) return;
+      if(!paused){ clearInterval(intervalId); paused=true; pauseBtn.textContent='繼續'; }
+      else { paused=false; pauseBtn.textContent='暫停'; intervalId = setInterval(tick,1000); }
+    };
 
-    stopBtn.addEventListener('click', () => {
-      clearInterval(timerInterval);
-      isPaused = false;
-      isRunning = false;
-      startBtn.disabled = false;
-      pauseBtn.disabled = true;
-      stopBtn.disabled = true;
-      pauseBtn.textContent = '暫停';
-      currentRound = 0;
-      currentPlayer = 1;
-      qTimeA = qTimeB = 0;
-      updateDisplay();
-    });
+    stopBtn.onclick = ()=>{
+      clearInterval(intervalId);
+      running=false; paused=false;
+      startBtn.disabled=false;
+      pauseBtn.disabled=true;
+      stopBtn.disabled=true;
+      pauseBtn.textContent='暫停';
+      roundCount=0;
+      current=1;
+      timeA=timeB=0;
+      update();
+    };
+
+    // 初始化顯示
+    update();
   </script>
 </body>
 </html>
