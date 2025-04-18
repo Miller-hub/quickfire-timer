@@ -5,13 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>快問快答計時器</title>
   <style>
-    /* 手機優化樣式 */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: sans-serif; background: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; }
     .container { width: 100%; max-width: 360px; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 16px; }
     h1 { text-align: center; font-size: 20px; color: #333; margin-bottom: 16px; }
     .setup, .controls { margin-bottom: 16px; }
-    .setup label { display: block; font-size: 14px; color: #555; margin-bottom: 8px; }
+    .setup label, .setup .auto-switch { display: block; font-size: 14px; color: #555; margin-bottom: 8px; }
     select, input[type="number"] { width: 48%; font-size: 16px; padding: 8px; margin: 4px 1%; border: 1px solid #ccc; border-radius: 8px; }
     .controls { display: flex; gap: 8px; justify-content: space-between; }
     .controls button { flex: 1; font-size: 16px; padding: 10px 0; border: none; border-radius: 8px; background: #0077cc; color: #fff; cursor: pointer; }
@@ -35,6 +34,7 @@
       <select id="seconds"></select> 秒  
       <label>回合數（0=無限）：</label>
       <input type="number" id="rounds" value="0" min="0" />
+      <label class="auto-switch"><input type="checkbox" id="autoSwitch" checked> 自動切換模式</label>
     </div>
     <div class="controls">
       <button id="startBtn">開始</button>
@@ -54,7 +54,6 @@
     <div id="roundInfo"></div>
   </div>
   <script>
-    // 元素
     const startBtn = document.getElementById('startBtn');
     const pauseBtn = document.getElementById('pauseBtn');
     const stopBtn = document.getElementById('stopBtn');
@@ -66,35 +65,33 @@
     const minSel = document.getElementById('minutes');
     const secSel = document.getElementById('seconds');
     const roundsInput = document.getElementById('rounds');
+    const autoSwitch = document.getElementById('autoSwitch');
 
-    // 狀態
     let initSec = 0, timeA = 0, timeB = 0;
     let current = 1;
     let rounds = 0, roundCount = 0;
     let running = false, paused = false;
     let intervalId = null;
 
-    // 建立選單
     for(let i=0;i<=60;i++){ minSel.add(new Option(i,i)); if(i<60) secSel.add(new Option(i,i)); }
     minSel.value = 0; secSel.value = 10;
 
     function format(s){ const m=Math.floor(s/60), sec=s%60; return `${m}:${sec<10?'0'+sec:sec}`; }
-
     function update(){
       t1.textContent = format(timeA);
       t2.textContent = format(timeB);
       p1.classList.toggle('active', current===1);
       p2.classList.toggle('active', current===2);
-      [t1,t2].forEach((el,i)=>{ if((i===0?timeA:timeB)===0) el.classList.add('red'); else el.classList.remove('red'); });
+      [t1,t2].forEach((el,i)=>{ const v=i===0?timeA:timeB; el.classList.toggle('red', v<=0); });
       info.textContent = rounds>0
         ? `第 ${roundCount} 回合 / 共 ${rounds} 回合`
         : `第 ${roundCount} 回合 / 無限回合`;
     }
 
     function tick(){
-      if(paused) return;
-      if(current===1){ timeA--; if(timeA<0) return switchPlayer(); }
-      else { timeB--; if(timeB<0) return switchPlayer(); }
+      if(paused||!running) return;
+      if(current===1){ timeA--; if(timeA<=0){ if(autoSwitch.checked) switchPlayer(); return; } }
+      else{ timeB--; if(timeB<=0){ if(autoSwitch.checked) switchPlayer(); return; } }
       update();
     }
 
@@ -103,28 +100,27 @@
       current = current===1?2:1;
       roundCount++;
       if(rounds>0 && roundCount>rounds){ running=false; startBtn.disabled=false; pauseBtn.disabled=true; stopBtn.disabled=true; return; }
-      // 重置新玩家時間
       if(current===1) timeA = initSec; else timeB = initSec;
       paused = false;
       update();
       intervalId = setInterval(tick,1000);
     }
 
-    p1.onclick = ()=>{ if(running&&!paused&&current!==1) switchPlayer(); };
-    p2.onclick = ()=>{ if(running&&!paused&&current!==2) switchPlayer(); };
+    p1.onclick = ()=>{ if(running&&!paused&&current!==1){ switchPlayer(); } };
+    p2.onclick = ()=>{ if(running&&!paused&&current!==2){ switchPlayer(); } };
 
     startBtn.onclick = ()=>{
       initSec = parseInt(minSel.value)*60 + parseInt(secSel.value);
       timeA = timeB = initSec;
-      rounds = parseInt(roundsInput.value) || 0;
+      rounds = parseInt(roundsInput.value)||0;
       roundCount = 1;
       current = 1;
       running = true;
       paused = false;
-      startBtn.disabled = true;
-      pauseBtn.disabled = false;
-      stopBtn.disabled = false;
-      pauseBtn.textContent = '暫停';
+      startBtn.disabled=true;
+      pauseBtn.disabled=false;
+      stopBtn.disabled=false;
+      pauseBtn.textContent='暫停';
       update();
       intervalId = setInterval(tick,1000);
     };
@@ -132,7 +128,7 @@
     pauseBtn.onclick = ()=>{
       if(!running) return;
       if(!paused){ clearInterval(intervalId); paused=true; pauseBtn.textContent='繼續'; }
-      else { paused=false; pauseBtn.textContent='暫停'; intervalId = setInterval(tick,1000); }
+      else{ paused=false; pauseBtn.textContent='暫停'; intervalId=setInterval(tick,1000); }
     };
 
     stopBtn.onclick = ()=>{
@@ -142,13 +138,10 @@
       pauseBtn.disabled=true;
       stopBtn.disabled=true;
       pauseBtn.textContent='暫停';
-      roundCount=0;
-      current=1;
-      timeA=timeB=0;
+      roundCount=0; current=1; timeA=timeB=0;
       update();
     };
 
-    // 初始化顯示
     update();
   </script>
 </body>
